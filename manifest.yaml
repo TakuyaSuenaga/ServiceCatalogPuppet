@@ -7,3 +7,11 @@ accounts:
     tags:
       - "type:prod"
       - "partition:eu"   
+
+imported-portfolios:
+  account-vending-for-spokes:
+    portfolio: iovpf-workload
+    share_with:
+      tags:
+        - tag: "type:prod"
+          regions: "default_region"  
