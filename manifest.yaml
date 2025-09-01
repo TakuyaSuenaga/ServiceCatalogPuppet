@@ -11,6 +11,8 @@ accounts:
 imported-portfolios:
   account-vending-for-spokes:
     portfolio: iovpf-workload
+    Associations:
+      - "arn:aws:iam::${AWS::AccountId}:role/TeamRole"
     share_with:
       tags:
         - tag: "type:prod"
