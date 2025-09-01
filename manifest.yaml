@@ -1,0 +1,9 @@
+accounts:
+  - account_id: "897729135795"
+    name: "puppet-account"
+    default_region: "ap-northeast-1"
+    regions_enabled:
+      - "ap-northeast-1"
+    tags:
+      - "type:prod"
+      - "partition:eu"   
