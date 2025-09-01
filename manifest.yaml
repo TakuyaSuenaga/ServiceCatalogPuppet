@@ -4,17 +4,17 @@ accounts:
     default_region: "ap-northeast-1"
     regions_enabled:
       - "ap-northeast-1"
+      - "ap-northeast-3"
     tags:
       - "type:prod"
-      - "partition:eu"   
+      - "partition:ap"
 
 imported-portfolios:
-  account-vending-for-spokes:
-    portfolio-id: port-6rckbzkn3vxgk
-    associations:
+  tokyo-to-osaka-portfolio-share:
+    portfolio: iovpf-workload
+    Associations:
       - "arn:aws:iam::${AWS::AccountId}:role/TeamRole"
     share_with:
       tags:
         - tag: "type:prod"
-          regions:
-            - default_region
+          regions: "ap-northeast-3"
