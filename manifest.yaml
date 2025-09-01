@@ -10,10 +10,11 @@ accounts:
 
 imported-portfolios:
   account-vending-for-spokes:
-    portfolio: iovpf-workload
-    Associations:
+    portfolio-id: port-6rckbzkn3vxgk
+    associations:
       - "arn:aws:iam::${AWS::AccountId}:role/TeamRole"
     share_with:
       tags:
         - tag: "type:prod"
-          regions: "default_region"  
+          regions:
+            - default_region
