@@ -1,20 +1,161 @@
+# AWS Service Catalog Puppet - サンプル manifest.yaml
+# このファイルは、ハブアカウント1つとスポークアカウント1つの完全な設定例です
+# 実際の環境に合わせてアカウントID、リージョン、製品情報を変更してください
+#
+# 重要: このファイルを使用する前に、以下の値を実際の環境に合わせて変更してください：
+# - アカウントID（123456789012, 210987654321）
+# - ポートフォリオID（port-で始まる値）
+# - リージョン設定
+# - 製品パラメータ
+
+# ========================================
+# アカウント定義セクション
+# ========================================
+# Service Catalog Puppetで管理するすべてのAWSアカウントを定義します
 accounts:
-  - account_id: "897729135795"
-    name: "puppet-account"
+  # ハブアカウント: Service Catalogの製品とポートフォリオを管理する中央アカウント
+  - account_id: "123456789012" # ← 実際のハブアカウントIDに変更してください
+    name: "hub-account"
+    default_region: "ap-northeast-1" # デフォルトリージョン（東京）
+    regions_enabled:
+      - "ap-northeast-1" # 東京リージョン
+      - "us-east-1" # バージニア北部リージョン（グローバルサービス用）
+    tags:
+      - Key: "Environment"
+        Value: "production"
+      - Key: "AccountType"
+        Value: "hub"
+      - Key: "Owner"
+        Value: "platform-team"
+
+  # スポークアカウント: 製品をデプロイする対象アカウント
+  - account_id: "210987654321" # ← 実際のスポークアカウントIDに変更してください
+    name: "spoke-account-dev"
     default_region: "ap-northeast-1"
     regions_enabled:
       - "ap-northeast-1"
-      - "us-east-1"
     tags:
-      - "type:prod"
-      - "partition:ap"
+      - Key: "Environment"
+        Value: "development"
+      - Key: "AccountType"
+        Value: "spoke"
+      - Key: "Team"
+        Value: "development-team"
 
-imported-portfolios:
-  tokyo-to-us-portfolio-share:
-    portfolio: iovpf-workload
-    Associations:
-      - "arn:aws:iam::${AWS::AccountId}:role/TeamRole"
-    share_with:
+# ========================================
+# 製品起動設定セクション
+# ========================================
+# スポークアカウントにデプロイする製品の設定を定義します
+launches:
+  # EC2インスタンス作成製品の例
+  ec2-instance-launch:
+    portfolio: "infrastructure-portfolio" # 製品が属するポートフォリオ名
+    product: "ec2-instance" # 製品名
+    version: "v1.0.0" # 製品バージョン
+    # 製品のパラメータ設定
+    parameters:
+      InstanceType: "t3.micro" # インスタンスタイプ
+      KeyName: "dev-keypair" # キーペア名（事前作成が必要）
+      SubnetId: "subnet-xxxxxxxxx" # ← サブネットID（実際の値に変更）
+      SecurityGroupId: "sg-xxxxxxxxx" # ← セキュリティグループID（実際の値に変更）
+    # デプロイ対象の指定（タグベース）
+    deploy_to:
       tags:
-        - tag: "type:prod"
-          regions: "us-east-1"
+        - tag: "Environment:development" # 開発環境タグを持つアカウントにデプロイ
+          regions: ["ap-northeast-1"]
+
+  # S3バケット作成製品の例
+  s3-bucket-launch:
+    portfolio: "storage-portfolio"
+    product: "s3-bucket"
+    version: "v2.1.0"
+    parameters:
+      BucketName: "my-app-data-bucket" # ← バケット名（グローバルでユニークである必要）
+      VersioningEnabled: "true" # バージョニング有効化
+      EncryptionEnabled: "true" # 暗号化有効化
+    deploy_to:
+      accounts: # 特定のアカウントを指定してデプロイ
+        - account_id: "210987654321"
+          regions: ["ap-northeast-1"]
+
+# ========================================
+# インポートポートフォリオセクション
+# ========================================
+# ハブアカウントからスポークアカウントに共有するポートフォリオを定義します
+imported-portfolios:
+  # インフラストラクチャ関連の製品ポートフォリオ
+  infrastructure-portfolio:
+    portfolio_id: "port-abcdef123456" # ← 実際のポートフォリオIDに変更してください
+    share_tag_options: true # タグオプションも共有する
+    share_principals: true # プリンシパル（IAMユーザー/ロール）も共有する
+    # デプロイ対象アカウントの指定
+    deploy_to:
+      accounts:
+        - "210987654321" # スポークアカウントに共有
+
+  # ストレージ関連の製品ポートフォリオ
+  storage-portfolio:
+    portfolio_id: "port-ghijkl789012" # ← 実際のポートフォリオIDに変更してください
+    share_tag_options: true
+    share_principals: false # プリンシパルは共有しない
+    deploy_to:
+      tags:
+        - tag: "Environment:development" # 開発環境タグを持つアカウントに共有
+          regions: ["ap-northeast-1"]
+
+# ========================================
+# スポークローカルポートフォリオセクション
+# ========================================
+# スポークアカウント固有のポートフォリオを定義します
+# これらのポートフォリオはスポークアカウント内でのみ利用可能です
+spoke-local-portfolios:
+  # 開発チーム専用のローカルポートフォリオ
+  dev-team-local-portfolio:
+    portfolio_id: "port-mnopqr345678" # スポークアカウント内のポートフォリオID
+    # デプロイ対象の詳細指定
+    deploy_to:
+      accounts:
+        - account_id: "210987654321" # 対象スポークアカウント
+          regions: ["ap-northeast-1"] # 対象リージョン
+          # オプション: 特定のOUやタグでフィルタリング可能
+          # ou: "ou-xxxxxxxxx"
+          # tags:
+          #   - Key: "Team"
+          #     Value: "development"
+
+  # セキュリティ承認済み製品のローカルポートフォリオ
+  security-approved-portfolio:
+    portfolio_id: "port-stuvwx901234"
+    deploy_to:
+      accounts:
+        - account_id: "210987654321"
+          regions:
+            - "ap-northeast-1"
+            - "us-east-1" # 複数リージョンでの展開例
+
+# ========================================
+# 設定のベストプラクティス
+# ========================================
+# 1. アカウントIDは実際の値に変更してください
+# 2. ポートフォリオIDは AWS Console で確認できます
+# 3. リージョンは組織のポリシーに従って設定してください
+# 4. タグは組織の命名規則に従って統一してください
+# 5. パラメータは製品の CloudFormation テンプレートに合わせてください
+# 6. セキュリティグループやサブネットIDは事前に作成されている必要があります
+
+# ========================================
+# 注意事項
+# ========================================
+# - このファイルは Git リポジトリで管理され、CI/CD パイプラインで自動デプロイされます
+# - 機密情報（パスワード等）は AWS Systems Manager Parameter Store を使用してください
+# - 変更前には必ず検証環境でテストしてください
+# - 大きな変更を行う場合は段階的にロールアウトすることを推奨します
+
+# ========================================
+# 初心者向けのヒント
+# ========================================
+# 1. 最初は1つのハブアカウントと1つのスポークアカウントから始めてください
+# 2. 製品のパラメータは CloudFormation テンプレートの Parameters セクションと一致させてください
+# 3. アカウントIDやポートフォリオIDは AWS Console で確認できます
+# 4. エラーが発生した場合は CloudWatch Logs でパイプラインの実行ログを確認してください
+# 5. 設定変更後は必ずパイプラインの実行結果を確認してください
